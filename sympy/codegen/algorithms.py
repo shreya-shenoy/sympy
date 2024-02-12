@@ -178,3 +178,77 @@ def newtons_method_function(expr, wrt, params=None, func_name="newton", attrs=Tu
     declars = tuple(Variable(p, real) for p in params)
     body = CodeBlock(algo, Return(wrt))
     return FunctionDefinition(real, func_name, declars, body, attrs=attrs)
+
+
+
+
+def fixed_point_iteration(expr, wrt, atol = 1e-12, delta = None, *, rtol = 4e-16, debug = False,
+    itermax = None, counter = None, delta_fn=lambda e, x: x,
+    cse = False, handle_nan = None,
+    bounds = None):
+    """ Calculates the fixed point of a function following the Fixed Point Convergence Theorem.
+
+    Parameters
+    ==========
+
+    expr : expression, assume that the expression follows the Fixed Point Convergence Theorem and does not need to be further manipulated
+    wrt : Symbol
+        With respect to, i.e. what is the variable
+     wrt : Symbol
+        With respect to, i.e. what is the variable.
+    atol : number or expression
+        Absolute tolerance (stopping criterion)
+    rtol : number or expression
+        Relative tolerance (stopping criterion)
+    delta : Symbol
+        Will be a ``Dummy`` if ``None``.
+    debug : bool
+        Whether to print convergence information during iterations
+    itermax : number or expr
+        Maximum number of iterations.
+    counter : Symbol
+        Will be a ``Dummy`` if ``None``.
+    delta_fn: Callable[[Expr, Symbol], Expr]
+        computes the step, default is newtons method. For e.g. Halley's method
+        use delta_fn=lambda e, x: -2*e*e.diff(x)/(2*e.diff(x)**2 - e*e.diff(x, 2))
+    cse: bool
+        Perform common sub-expression elimination on delta expression
+    handle_nan: Token
+        How to handle occurrence of not-a-number (NaN).
+    bounds: Optional[tuple[Expr, Expr]]
+        Perform optimization within bounds
+
+    Examples
+    == == == ==
+
+    >>> from sympy import symbols, cos
+    >>> from sympy.codegen.algorithms import newtons_method_function
+    >>> from sympy.codegen.pyutils import render_as_module
+    >>> x = symbols('x')
+    >>> expr = cos(x)
+    >>> func = fixed_point_iteration(expr, x)
+    >>> py_mod = render_as_module(func)  # source code as string
+    >>> namespace = {}
+    >>> exec(py_mod, namespace, namespace)
+    >>> res = eval('fixedpoint(0.5)', namespace)
+    >>> abs(res - 0.739109081421) < 1e-12
+    True
+
+    """
+    if delta is None:
+        delta = 1e-6
+    for i in range(itermax): # go up until the max number of iterations
+        var = delta_fn(expr, wrt) # computes the fixed point step
+
+        wrt = var
+
+        if handle_nan is not None and var is None:
+            handle_nan()
+            break
+        if(abs(var.evalf()) < atol): # check if the value meets the tolerance limit
+            break
+
+        if debug:
+            print(f"{wrt}= {var}")
+
+    return var

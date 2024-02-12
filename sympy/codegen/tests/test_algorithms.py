@@ -4,7 +4,7 @@ from sympy.core.numbers import Float
 from sympy.core.symbol import Symbol, symbols
 from sympy.functions.elementary.trigonometric import cos
 from sympy.codegen.ast import Assignment, Raise, RuntimeError_, QuotedString
-from sympy.codegen.algorithms import newtons_method, newtons_method_function
+from sympy.codegen.algorithms import newtons_method, newtons_method_function, fixed_point_iteration
 from sympy.codegen.cfunctions import expm1
 from sympy.codegen.fnodes import bind_C
 from sympy.codegen.futils import render_as_module as f_module
@@ -177,3 +177,11 @@ def test_newtons_method_function__rtol_cse_nan():
             if use_cse:
                 req *= 2
             assert abs(result - ref) < req
+
+def test_fixed_point_iteration():
+    x, dx, atol = symbols('x dx atol')
+    expr = cos(x)
+    result = fixed_point_iteration(expr, x, atol, delta=dx, itermax = 500)
+
+    # Check if the result satisfies the condition for fixed point iteration
+    assert abs(result - cos(result)) < atol
